@@ -51,6 +51,10 @@ public class StepMania extends Applet implements Runnable{
 	ArrayList <Song> songList;
 	ArrayList <Note> currSong;
 	ArrayList <Character> chDown;
+	public static void main(String args[]) {
+		System.out.println("Convert to Java Application!");
+	}
+	
 	public void init(){
 		//Start variables for double buffer
 		d = getSize();
