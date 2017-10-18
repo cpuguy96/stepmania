@@ -1,28 +1,336 @@
 
-import java.awt.*;
-import java.applet.*;
-import java.util.*; 
-import java.io.*;
-import java.security.AccessControlException;
+import javafx.animation.AnimationTimer;
+import javafx.application.Application;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.*;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Scanner;
+import java.io.File;
 /********************************
- |   StepMania2                	|
- |   Started 4/9/15				|
- |   TEAM MEMBERS				|
- |   	Chimezie Iwuanyanwu		|
+ 	StepMania3
+    Started 10/17/17
+    TEAM MEMBERS
+    	Chimezie Iwuanyanwu
+
+ 	OBJECTIVE
+ 		To create a replica of the game StepMania for PC
+ 		Learn how to use JavaFX
+
+ 	TODO: Convert existing Java Applet code into JavaFX Application
  ********************************/
 
-@SuppressWarnings("serial")
-public class StepMania extends Applet implements Runnable{
+public class StepMania extends Application{
+	private final FrameStats frameStats = new FrameStats() ;
+	private ObservableList<Note> notes = FXCollections.observableArrayList();
+	final Keyboard keyboard = new Keyboard(new Key(KeyCode.A),
+			new Key(KeyCode.S),
+			new Key(KeyCode.D),
+			new Key(KeyCode.F));
+	public static void main(String[] args) {
+		launch(args);
+	}
+
+	@Override
+	public void start(Stage primaryStage) {
+		final Pane ballContainer = new Pane();
+
+
+		final BorderPane root = new BorderPane();
+		final javafx.scene.control.Label stats = new Label() ;
+		stats.textProperty().bind(frameStats.textProperty());
+
+
+
+		root.setCenter(ballContainer);
+		root.setBottom(stats);
+
+		//loadNotes();
+
+		final Scene scene = new Scene(root, 800, 600);
+		primaryStage.setResizable(false);
+		primaryStage.setScene(scene);
+		primaryStage.show();
+
+		startAnimation(ballContainer);
+
+	}
+
+	private void startAnimation(final Pane ballContainer) {
+		final LongProperty lastUpdateTime = new SimpleLongProperty(0);
+		final AnimationTimer timer = new AnimationTimer() {
+			@Override
+			public void handle(long timestamp) {
+				if (lastUpdateTime.get() > 0) {
+					long elapsedTime = timestamp - lastUpdateTime.get();
+					//TODO: Add animation update here
+					frameStats.addFrame(elapsedTime);
+				}
+				lastUpdateTime.set(timestamp);
+			}
+
+		};
+		timer.start();
+	}
+
+	private static class FrameStats {
+		private long frameCount ;
+		private double meanFrameInterval ; // millis
+		private final ReadOnlyStringWrapper text = new ReadOnlyStringWrapper(this, "text", "Frame count: 0 Average frame interval: N/A");
+		private ArrayList<String> keys;
+
+		public long getFrameCount() {
+			return frameCount;
+		}
+		public double getMeanFrameInterval() {
+			return meanFrameInterval;
+		}
+
+		public void addFrame(long frameDurationNanos) {
+			meanFrameInterval = (meanFrameInterval * frameCount + frameDurationNanos / 1_000_000.0) / (frameCount + 1) ;
+			frameCount++ ;
+			text.set(toString());
+		}
+		public void keyPresses (ArrayList<String> keys){
+			this.keys = keys;
+			text.set(toString());
+		}
+		public String getText() {
+			return text.get();
+		}
+
+		public ReadOnlyStringProperty textProperty() {
+			return text.getReadOnlyProperty() ;
+		}
+
+		@Override
+		public String toString() {
+			String output = String.format("Frame count: %,d Average frame interval: %.3f milliseconds Keyboard keys held down: ", getFrameCount(), getMeanFrameInterval());
+			for(String key: keys){
+				output += key + " ";
+			}
+			return output;
+		}
+	}
+
+	private static final class Key {
+		private final KeyCode keyCode;
+		private final BooleanProperty pressedProperty;
+
+		public Key(final KeyCode keyCode) {
+			this.keyCode = keyCode;
+			this.pressedProperty = new SimpleBooleanProperty(this, "pressed");
+		}
+
+		public KeyCode getKeyCode() {
+			return keyCode;
+		}
+
+		public boolean isPressed() {
+			return pressedProperty.get();
+		}
+
+		public void setPressed(final boolean value) {
+			pressedProperty.set(value);
+		}
+
+		public Node createNode() {
+			final StackPane keyNode = new StackPane();
+			keyNode.setFocusTraversable(true);
+			installEventHandler(keyNode);
+
+			final Rectangle keyBackground = new Rectangle(50, 50);
+			keyBackground.fillProperty().bind(
+					Bindings.when(pressedProperty)
+							.then(Color.RED)
+							.otherwise(Bindings.when(keyNode.focusedProperty())
+									.then(Color.LIGHTGRAY)
+									.otherwise(Color.WHITE)));
+			keyBackground.setStroke(Color.BLACK);
+			keyBackground.setStrokeWidth(2);
+			keyBackground.setArcWidth(12);
+			keyBackground.setArcHeight(12);
+
+			final Text keyLabel = new Text(keyCode.getName());
+			keyLabel.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+
+			keyNode.getChildren().addAll(keyBackground, keyLabel);
+
+			return keyNode;
+		}
+
+		private void installEventHandler(final Node keyNode) {
+			// handler for enter key press / release events, other keys are
+			// handled by the parent (keyboard) node handler
+			final EventHandler<KeyEvent> keyEventHandler =
+					new EventHandler<KeyEvent>() {
+						public void handle(final KeyEvent keyEvent) {
+							if (keyEvent.getCode() == KeyCode.ENTER) {
+								setPressed(keyEvent.getEventType()
+										== KeyEvent.KEY_PRESSED);
+
+								keyEvent.consume();
+							}
+						}
+					};
+
+			keyNode.setOnKeyPressed(keyEventHandler);
+			keyNode.setOnKeyReleased(keyEventHandler);
+		}
+	}
+
+	private static final class Keyboard {
+		private final Key[] keys;
+
+		public Keyboard(final Key... keys) {
+			this.keys = keys.clone();
+		}
+
+		public Node createNode() {
+			final HBox keyboardNode = new HBox(6);
+			keyboardNode.setPadding(new Insets(6));
+
+			final List<Node> keyboardNodeChildren = keyboardNode.getChildren();
+			for (final Key key: keys) {
+				keyboardNodeChildren.add(key.createNode());
+			}
+
+			installEventHandler(keyboardNode);
+			return keyboardNode;
+		}
+
+		private void installEventHandler(final Parent keyboardNode) {
+			// handler for key pressed / released events not handled by
+			// key nodes
+			final EventHandler<KeyEvent> keyEventHandler =
+					new EventHandler<KeyEvent>() {
+						public void handle(final KeyEvent keyEvent) {
+							final Key key = lookupKey(keyEvent.getCode());
+							if (key != null) {
+								key.setPressed(keyEvent.getEventType()
+										== KeyEvent.KEY_PRESSED);
+
+								keyEvent.consume();
+							}
+						}
+					};
+
+			keyboardNode.setOnKeyPressed(keyEventHandler);
+			keyboardNode.setOnKeyReleased(keyEventHandler);
+
+			keyboardNode.addEventHandler(KeyEvent.KEY_PRESSED,
+					new EventHandler<KeyEvent>() {
+						public void handle(
+								final KeyEvent keyEvent) {
+							handleFocusTraversal(
+									keyboardNode,
+									keyEvent);
+						}
+					});
+		}
+
+		private Key lookupKey(final KeyCode keyCode) {
+			for (final Key key: keys) {
+				if (key.getKeyCode() == keyCode) {
+					return key;
+				}
+			}
+			return null;
+		}
+
+		private static void handleFocusTraversal(final Parent traversalGroup,
+												 final KeyEvent keyEvent) {
+			final Node nextFocusedNode;
+			switch (keyEvent.getCode()) {
+				case LEFT:
+					nextFocusedNode =
+							getPreviousNode(traversalGroup,
+									(Node) keyEvent.getTarget());
+					keyEvent.consume();
+					break;
+
+				case RIGHT:
+					nextFocusedNode =
+							getNextNode(traversalGroup,
+									(Node) keyEvent.getTarget());
+					keyEvent.consume();
+					break;
+
+				default:
+					return;
+			}
+
+			if (nextFocusedNode != null) {
+				nextFocusedNode.requestFocus();
+			}
+		}
+
+		private static Node getNextNode(final Parent parent,
+										final Node node) {
+			final Iterator<Node> childIterator =
+					parent.getChildrenUnmodifiable().iterator();
+
+			while (childIterator.hasNext()) {
+				if (childIterator.next() == node) {
+					return childIterator.hasNext() ? childIterator.next()
+							: null;
+				}
+			}
+
+			return null;
+		}
+
+		private static Node getPreviousNode(final Parent parent,
+											final Node node) {
+			final Iterator<Node> childIterator =
+					parent.getChildrenUnmodifiable().iterator();
+			Node lastNode = null;
+
+			while (childIterator.hasNext()) {
+				final Node currentNode = childIterator.next();
+				if (currentNode == node) {
+					return lastNode;
+				}
+
+				lastNode = currentNode;
+			}
+
+			return null;
+		}
+	}
+	/*
 	//Start variables for double buffer
 	Dimension d;
 	Dimension dim;
 	Graphics bufferGraphics;
-	Image offscreen; 
+	Image offscreen;
 	int frame;
 	int sleepTime;
 	Thread backAnimator;
 	//End variables for double buffer
-	
+
 	//Start images for arrows
 	Image leftArrow[] = new Image [4];
 	Image upArrow[] = new Image [4];
@@ -31,7 +339,7 @@ public class StepMania extends Applet implements Runnable{
 	Image rec[] = new Image [4];
 	Image recPress[] = new Image [4];
 	//End images for arrows
-	
+
 	Image numbers[] = new Image [10];
 	Image bars[] = new Image [4];
 	Image back;
@@ -52,10 +360,6 @@ public class StepMania extends Applet implements Runnable{
 	ArrayList <Song> songList;
 	ArrayList <Note> currSong;
 	ArrayList <Character> chDown;
-	public static void main(String args[]) {
-		System.out.println("Convert to Java Application!");
-	}
-	
 	public void init(){
 		//Start variables for double buffer
 		d = getSize();
@@ -492,4 +796,5 @@ public class StepMania extends Applet implements Runnable{
       	repaint();
       	return false;
     }
+    */
 }
