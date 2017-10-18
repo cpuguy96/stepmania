@@ -11,6 +11,7 @@ import java.security.AccessControlException;
  |   	Chimezie Iwuanyanwu		|
  ********************************/
 
+@SuppressWarnings("serial")
 public class StepMania extends Applet implements Runnable{
 	//Start variables for double buffer
 	Dimension d;
@@ -191,6 +192,7 @@ public class StepMania extends Applet implements Runnable{
 		if(ch == 27 && intKeyOff == 1)tcommand = 0;
 
 	}
+	@SuppressWarnings("deprecation")
 	public void playCurrentSong(Graphics g, int index){
 		//Plays the music, sets notes and background of song selected
 		try {currSong = songList.get(index).getSong();}
@@ -309,7 +311,7 @@ public class StepMania extends Applet implements Runnable{
     	try {
 			String content = score+"";
  
-			File file = new File("scores/"+songList.get(index).getName().substring(4));
+			File file = new File("../res/scores/"+songList.get(index).getName().substring(4)+".txt");
  
 			// if file doesnt exists, then create it
 			if (!file.exists()) {
@@ -335,6 +337,7 @@ public class StepMania extends Applet implements Runnable{
 					}
 					catch (AccessControlException ie) {}
 				}
+				scoreInput.close();
 			}
 			
  
