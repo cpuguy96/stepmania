@@ -1,3 +1,4 @@
+package stepmania;
 public class Note {
     String direction;
 	int delay;
